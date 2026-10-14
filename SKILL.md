@@ -13,8 +13,8 @@ The loop has three phases. `/review-loop` runs **submit** then **discuss**. `/re
 ## Vocabulary
 
 - **Topic**: a directory under `.scratch/` holding one set of artefacts (`sandbox-cli`, `sandbox-impl`, `live-test`). Named by the user, or inferred from the artefacts touched since the last review; ask when two topics are touched.
-- **Review file**: `.scratch/<topic>/review-codex-<YYYYmmddHHMM>-<hash>[-<suffix>].md`, written by Codex. The suffix names the artefact kind when a topic has more than one (`spec`, `tickets`); design docs carry none.
-- **Response file**: the review file's path with `-response` before `.md`, written in discuss. The prior response is the newest `*-response.md` in the topic.
+- **Review file**: `.scratch/<topic>/review-codex-<YYYYmmddHHMM>-<hash>[-<suffix>]-findings.md`, written by Codex. The suffix names the artefact kind when a topic has more than one (`spec`, `tickets`); design docs carry none.
+- **Response file**: the review file's path with `-response` in place of `-findings`, written in discuss. The prior response is the newest `*-response.md` in the topic. The two words are chosen so the review sorts before its response by filename, which is the order the docs site lists them in; topics reviewed before this convention keep their older `…[-<suffix>].md` review names.
 - **Topic brief**: `.scratch/<topic>/review-brief.md`, the durable part of the review prompt. Created from [`brief-template.md`](brief-template.md) on a topic's first run.
 - **Finding**: one numbered item in a review. **Deliberate choice**: a finding the user resolves by accepting the risk or cost; it is recorded in the ticket or ADR it concerns, not only in the response.
 

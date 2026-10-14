@@ -1,14 +1,23 @@
 ---
 name: review-loop
-description: Commit, send the work to a Codex review, commit the review, grill the user through each finding, record the response.
+description: Loop until Codex has no findings. Each turn commits pending work, sends it to a Codex review, commits the review, grills the user through each finding, records and commits the response.
 disable-model-invocation: true
 ---
 
 # Review loop
 
-One turn of the loop that has shaped this repo's design: commit what is pending, ask Codex for a second-model review of one topic's artefacts, commit the review, walk the user through every finding with the grilling discipline, and record what was decided beside the review. Each turn ends by printing the next turn's command, so the loop is one keystroke to continue.
+The loop that has shaped this repo's design: commit what is pending, ask Codex for a second-model review of one topic's artefacts, commit the review, walk the user through every finding with the grilling discipline, record what was decided beside the review, commit that, and go again until a review comes back with no findings.
 
-The loop has three phases. `/review-loop` runs **submit** then **discuss**. `/review-loop submit`, `/review-loop discuss` and `/review-loop close` run one phase.
+A **turn** is one pass through the three phases, **submit**, **discuss** and **close**. Phases follow each other without pausing; the only waits are the per-finding questions in discuss.
+
+## Invocation
+
+- `/review-loop`: run turns until a review has no findings, at most five.
+- `/review-loop <n>`: the same, with `<n>` turns as the cap. `once` is the spelling for one turn.
+- `/review-loop [<n>] auto`: unattended discuss; see the discuss phase for what auto does and where it still waits.
+- `/review-loop submit`, `/review-loop discuss`, `/review-loop close`: one phase, then stop.
+
+A turn whose review has any finding, low included, is followed by another turn; a review with none ends the loop. When the cap is reached with findings still open, say the topic has not converged and stop; the next invocation continues from the last close.
 
 ## Vocabulary
 
@@ -41,18 +50,18 @@ Load the `grilling` and `domain-modeling` skills. Then, for each finding in seve
 
 1. State in one or two sentences whether the finding is right, and the fact that settles it, looking things up rather than asking.
 2. Put exactly one question in the grilling format, with a recommended answer the user can accept with "yes". When two findings share one root cause, one question may cover both and must say so.
-3. Wait. Edit nothing before the answer.
+3. Wait. Edit nothing before the answer. In `auto` mode, do not wait: take the recommended answer as the answer and say so in the response entry. The one exception is a recommended answer that is a deliberate choice; auto mode stops at that finding and waits, because a recorded acceptance of a risk or cost carries the user's name and an edit does not.
 4. Apply the answer to every file it touches, then append the finding's entry to the response file: its number and title, what was decided, and where it landed. A deliberate choice is also written into the ticket or ADR it concerns, marked as such.
 5. A finding that is a transcription error against a decision already made is applied without a question and reported as such.
 
-After the last finding: run a grep for wording the round made stale, fix what it finds, end the response file with a one-line agreement or disagreement with the review's disposition table, and summarise in the form the user has seen all session: one bullet per finding, nothing committed, the next phase named.
+After the last finding: run a grep for wording the round made stale, fix what it finds, end the response file with a one-line agreement or disagreement with the review's disposition table, and summarise in the form the user has seen all session: one bullet per finding, nothing committed, the next phase named. Print it and continue into close without waiting.
 
 Completion: every finding has a response entry, every edit the entries name exists in the tree, and the stale-wording grep is clean.
 
 ## close
 
 1. Commit everything the discuss phase touched, response file included: `docs: respond to the Codex <topic> review of <hash>`, body one line per finding.
-2. Print the next `submit` command for this topic, ready to paste, unless the review just closed had no findings, in which case say the topic has converged and stop.
+2. If the review just closed had no findings, say the topic has converged and stop. Otherwise, if the turn cap is not reached, print the commit line and start the next turn's submit without waiting. If it is reached, or the invocation was a single phase or `once`, print the next `/review-loop` command for this topic, ready to paste, and stop.
 
 ## Guardrails
 

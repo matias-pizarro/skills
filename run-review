@@ -1,0 +1,52 @@
+#!/bin/sh
+# Run one review as a subagent, the prompt read from a file and the reviewer's
+# final message written to the review file.
+#
+# With OPENAI_API_KEY set, the reviewer is a Pi subagent on an OpenAI model
+# (REVIEW_MODEL, default openai/gpt-5.3-codex) with read-only file tools and
+# bash. Without it, the reviewer is `codex exec --sandbox read-only` on the
+# `codex login` account.
+#
+# Inside tmux the review runs in its own pane beside the caller's, which
+# blocks until the pane finishes; outside tmux it runs in place. Either way
+# the exit status is the reviewer's, or 124 when the thirty-minute limit is hit.
+set -eu
+[ "$#" -eq 2 ] || { echo "usage: $0 <review file> <prompt file>" >&2; exit 2; }
+
+export REVIEW_OUT="$1" REVIEW_PROMPT="$2" REVIEW_LIMIT=1800
+export REVIEW_MODEL="${REVIEW_MODEL:-openai/gpt-5.3-codex}"
+# Paths travel as environment, not spliced into the command, so no quoting.
+# The commands expand later, in the shell that runs them.
+# shellcheck disable=SC2016
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  echo "run-review: Pi subagent on $REVIEW_MODEL" >&2
+  review='timeout "$REVIEW_LIMIT" pi -p --no-session -ne -ns -np \
+    --model "$REVIEW_MODEL" --tools read,grep,find,ls,bash \
+    < "$REVIEW_PROMPT" > "$REVIEW_OUT"'
+else
+  echo "run-review: no OPENAI_API_KEY, codex exec" >&2
+  review='timeout "$REVIEW_LIMIT" codex exec --sandbox read-only \
+    -o "$REVIEW_OUT" - < "$REVIEW_PROMPT"'
+fi
+
+if [ -z "${TMUX:-}" ]; then
+  exec sh -c "$review"
+fi
+
+export REVIEW_CHANNEL="review-loop-$$" REVIEW_STATUS REVIEW_KEY
+REVIEW_STATUS=$(mktemp)
+# A new pane gets the tmux server's environment, not ours; the key goes over
+# in a mode-0600 file rather than on a command line that ps would show.
+REVIEW_KEY=$(mktemp)
+trap 'rm -f "$REVIEW_STATUS" "$REVIEW_KEY"' EXIT
+printf '%s' "${OPENAI_API_KEY:-}" > "$REVIEW_KEY"
+tmux split-window -d ${TMUX_PANE:+-t "$TMUX_PANE"} -c "$PWD" \
+  -e "REVIEW_OUT=$REVIEW_OUT" -e "REVIEW_PROMPT=$REVIEW_PROMPT" \
+  -e "REVIEW_LIMIT=$REVIEW_LIMIT" -e "REVIEW_MODEL=$REVIEW_MODEL" \
+  -e "REVIEW_STATUS=$REVIEW_STATUS" -e "REVIEW_CHANNEL=$REVIEW_CHANNEL" \
+  -e "REVIEW_KEY=$REVIEW_KEY" \
+  "[ -s \"\$REVIEW_KEY\" ] && export OPENAI_API_KEY=\$(cat \"\$REVIEW_KEY\"); ($review); echo \$? > \"\$REVIEW_STATUS\"; tmux wait-for -S \"\$REVIEW_CHANNEL\""
+# The pane signals even when the reviewer fails, exits or times out, since it
+# runs in a subshell; the outer limit only covers a pane killed by hand.
+timeout $((REVIEW_LIMIT + 60)) tmux wait-for "$REVIEW_CHANNEL" || exit 124
+exit "$(cat "$REVIEW_STATUS")"

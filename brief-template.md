@@ -26,7 +26,7 @@ Check for:
 
 ## Citations
 
-Cite every file as a markdown link relative to the review file, which sits in `.scratch/<topic>/`, with the line in the link text: `[spec.md:35](spec.md)`, `[ADR-0008:7](../../docs/adr/0008-prefer-the-simplest-mechanism-that-meets-the-threat-model.md)`. Never an absolute path, and no `:line` in the target; the docs build refuses both. Cite `docs-site/nav.md` as plain text, not a link: the site excludes it, since literate-nav reads its paths from the repo root and as a page they would resolve from `docs-site/`.
+Cite every file as a markdown link relative to the review file, which sits in `.scratch/<topic>/reviews/`, with the line in the link text: `[spec.md:35](../spec.md)`, `[ADR-0008:7](../../../docs/adr/0008-prefer-the-simplest-mechanism-that-meets-the-threat-model.md)`. Never an absolute path, and no `:line` in the target; the docs build refuses both. Cite `docs-site/nav.md` as plain text, not a link: the site excludes it, since literate-nav reads its paths from the repo root and as a page they would resolve from `docs-site/`.
 
 ## Do not re-raise
 

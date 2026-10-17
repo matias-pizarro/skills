@@ -7,8 +7,9 @@
 # bash. Without it, the reviewer is `codex exec --sandbox read-only` on the
 # `codex login` account.
 #
-# Inside tmux the review runs in its own pane beside the caller's, which
-# blocks until the pane finishes; outside tmux it runs in place. Either way
+# Inside tmux the review runs in its own pane beside the caller's, in an
+# interactive bash so it gets the user's .bashrc environment (DISPLAY among
+# it), and the caller blocks until the pane finishes; outside tmux it runs in place. Either way
 # the exit status is the reviewer's, or 124 when the thirty-minute limit is hit.
 set -eu
 [ "$#" -eq 2 ] || { echo "usage: $0 <review file> <prompt file>" >&2; exit 2; }
@@ -40,12 +41,15 @@ REVIEW_STATUS=$(mktemp)
 REVIEW_KEY=$(mktemp)
 trap 'rm -f "$REVIEW_STATUS" "$REVIEW_KEY"' EXIT
 printf '%s' "${OPENAI_API_KEY:-}" > "$REVIEW_KEY"
+# The pane command expands in the pane, not here.
+# shellcheck disable=SC2016
 tmux split-window -d ${TMUX_PANE:+-t "$TMUX_PANE"} -c "$PWD" \
   -e "REVIEW_OUT=$REVIEW_OUT" -e "REVIEW_PROMPT=$REVIEW_PROMPT" \
   -e "REVIEW_LIMIT=$REVIEW_LIMIT" -e "REVIEW_MODEL=$REVIEW_MODEL" \
   -e "REVIEW_STATUS=$REVIEW_STATUS" -e "REVIEW_CHANNEL=$REVIEW_CHANNEL" \
   -e "REVIEW_KEY=$REVIEW_KEY" \
-  "[ -s \"\$REVIEW_KEY\" ] && export OPENAI_API_KEY=\$(cat \"\$REVIEW_KEY\"); ($review); echo \$? > \"\$REVIEW_STATUS\"; tmux wait-for -S \"\$REVIEW_CHANNEL\""
+  -e "REVIEW_PANE=[ -s \"\$REVIEW_KEY\" ] && export OPENAI_API_KEY=\$(cat \"\$REVIEW_KEY\"); ($review); echo \$? > \"\$REVIEW_STATUS\"; tmux wait-for -S \"\$REVIEW_CHANNEL\"" \
+  'exec bash -ic "$REVIEW_PANE"'
 # The pane signals even when the reviewer fails, exits or times out, since it
 # runs in a subshell; the outer limit only covers a pane killed by hand.
 timeout $((REVIEW_LIMIT + 60)) tmux wait-for "$REVIEW_CHANNEL" || exit 124

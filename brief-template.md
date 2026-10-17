@@ -24,6 +24,10 @@ Check for:
 - glossary drift;
 - anything that violates ADR-0008 beyond the recorded deliberate choices.
 
+## Citations
+
+Cite every file as a markdown link relative to the review file, which sits in `.scratch/<topic>/`, with the line in the link text: `[spec.md:35](spec.md)`, `[ADR-0008:7](../../docs/adr/0008-prefer-the-simplest-mechanism-that-meets-the-threat-model.md)`. Never an absolute path, and no `:line` in the target; the docs build refuses both.
+
 ## Do not re-raise
 
 Do not re-raise <list, one per line, each naming where it is recorded as a deliberate choice> unless you have a new argument.

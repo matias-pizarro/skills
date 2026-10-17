@@ -42,7 +42,7 @@ A turn whose review has any finding, low included, is followed by another turn; 
    .agents/skills/review-loop/run-review <review file> <prompt file>
    ```
    With `OPENAI_API_KEY` set the reviewer is a Pi subagent on an OpenAI model (`REVIEW_MODEL`, default `openai/gpt-5.3-codex`); without it, `codex exec --sandbox read-only`. Inside tmux it runs in its own pane, where its output streams, and the script waits for it; outside tmux it streams in place. Run it with a tool timeout of at least thirty-two minutes, since the script enforces thirty itself. A non-zero exit (124 for the time limit) means no review: report the exit status and stop the turn.
-5. Commit the review file alone: `docs: record codex <topic> review`. If the docs build hook refuses it for a link, correct only the link's target; where the target carried a line number the text lacks, add it to the text, as in `[spec.md:35](spec.md)`. A link to `docs-site/nav.md`, which the site cannot hold, keeps its text and loses the link. Commit again.
+5. Commit the review file alone: `docs: record codex <topic> review`. If the docs build hook refuses it for a link, correct only the link's target; where the target carried a line number the text lacks, add it to the text, as in `[spec.md:35](spec.md)`. A link to `docs-site/nav.md`, which the site excludes, keeps its text and loses the link. Commit again.
 6. Completion: the review file exists, is committed, and has been read; report its finding count and severities in one line.
 
 ## discuss

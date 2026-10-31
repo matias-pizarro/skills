@@ -6,9 +6,16 @@ disable-model-invocation: true
 
 # Review loop
 
-The loop that has shaped this repo's design: commit what is pending, ask Codex for a second-model review of one topic's artefacts, commit the review, walk the user through every finding with the grilling discipline, record what was decided beside the review, commit that, and go again until a review comes back with no findings.
+A design loop: commit what is pending, ask Codex for a second-model review of one topic's artefacts, commit the review, walk the user through every finding with the grilling discipline, record what was decided beside the review, commit that, and go again until a review comes back with no findings.
 
 A **turn** is one pass through the three phases, **submit**, **discuss** and **close**. Phases follow each other without pausing; the only waits are the per-finding questions in discuss.
+
+## Prerequisites
+
+- A git repo that keeps work under `.scratch/<topic>/`.
+- A reviewer: `codex`, logged in, or `pi` with `OPENAI_API_KEY` set. tmux is optional.
+- The `grilling` and `domain-modeling` skills, which discuss loads.
+- The project's `AGENTS.md` may add rules for review files, such as links its docs build refuses; they apply on top of this skill.
 
 ## Invocation
 
@@ -21,10 +28,10 @@ A turn whose review has any finding, low included, is followed by another turn; 
 
 ## Vocabulary
 
-- **Topic**: a directory under `.scratch/` holding one set of artefacts (`sandbox-cli`, `sandbox-impl`, `live-test`). Named by the user, or inferred from the artefacts touched since the last review; ask when two topics are touched.
+- **Topic**: a directory under `.scratch/` holding one set of artefacts, such as a spec and its tickets. Named by the user, or inferred from the artefacts touched since the last review; ask when two topics are touched.
 - **Review file**: `.scratch/<topic>/reviews/review-codex-<YYYYmmddHHMM>-<hash>[-<suffix>]-findings.md`, written by Codex. The suffix names the artefact kind when a topic has more than one (`spec`, `tickets`); design docs carry none.
-- **Response file**: the review file's path with `-response` in place of `-findings`, written in discuss. The prior response is the newest `*-response.md` in the topic's `reviews/`. Review and response files live in `reviews/`, which the docs site lists as a Reviews entry beside Issues; the topic brief stays at the topic's top level. The two words are chosen so the review sorts before its response by filename, which is the order the docs site lists them in.
-- **Round number**: N, the topic's round count including this turn: one more than the highest number in the H1s under the topic's `reviews/`. The review's H1 starts `# Na. ` and the response's `# Nb. `, so the docs site's Reviews entry reads 1a, 1b, 2a and so on.
+- **Response file**: the review file's path with `-response` in place of `-findings`, written in discuss. The prior response is the newest `*-response.md` in the topic's `reviews/`. Review and response files live in `reviews/`; the topic brief stays at the topic's top level. The two words are chosen so the review sorts before its response by filename.
+- **Round number**: N, the topic's round count including this turn: one more than the highest number in the H1s under the topic's `reviews/`. The review's H1 starts `# Na. ` and the response's `# Nb. `, so a listing by title reads 1a, 1b, 2a and so on.
 - **Topic brief**: `.scratch/<topic>/review-brief.md`, the durable part of the review prompt. Created from [`brief-template.md`](brief-template.md) on a topic's first run.
 - **Finding**: one numbered item in a review. **Deliberate choice**: a finding the user resolves by accepting the risk or cost; it is recorded in the ticket or ADR it concerns, not only in the response.
 
@@ -38,13 +45,13 @@ A turn whose review has any finding, low included, is followed by another turn; 
    - the brief's do-not-re-raise list plus any deliberate choice recorded in the prior response;
    - a check for whatever this turn changed that the brief's standing checks do not name.
    - the round number, with the instruction to title the report `# Na. <title>`.
-   The prompt always ends with the three fixed sentences: say so plainly if nothing is above low severity; do not edit files; produce a markdown report ordered by severity, citing file and line as a markdown link relative to the review file, which sits in `.scratch/<topic>/reviews/`, with the line in the link text, as in `[spec.md:35](../spec.md)`, never as an absolute path or with `:line` in the target, since the docs site resolves neither.
-4. Write the prompt to a temporary file and run the review as a subagent with [`run-review`](run-review), from the repo root:
+   The prompt always ends with the three fixed sentences: say so plainly if nothing is above low severity; do not edit files; produce a markdown report ordered by severity, citing file and line as a markdown link relative to the review file, which sits in `.scratch/<topic>/reviews/`, with the line in the link text, as in `[spec.md:35](../spec.md)`, never as an absolute path or with `:line` in the target, since rendered markdown resolves neither.
+4. Write the prompt to a temporary file and run the review as a subagent with [`run-review`](run-review), which sits beside this file, from the repo root:
    ```
-   .agents/skills/review-loop/run-review <review file> <prompt file>
+   <this skill's directory>/run-review <review file> <prompt file>
    ```
    With `OPENAI_API_KEY` set the reviewer is a Pi subagent on an OpenAI model (`REVIEW_MODEL`, default `openai/gpt-5.3-codex`); without it, `codex exec --sandbox read-only`. Inside tmux it runs in its own pane, where its output streams, and the script waits for it; outside tmux it streams in place. Run it with a tool timeout of at least thirty-two minutes, since the script enforces thirty itself. A non-zero exit (124 for the time limit) means no review: report the exit status and stop the turn.
-5. Commit the review file alone: `docs: record codex <topic> review`. If the docs build hook refuses it for a link, correct only the link's target; where the target carried a line number the text lacks, add it to the text, as in `[spec.md:35](../spec.md)`. A link to `docs-site/nav.md`, which the site excludes, keeps its text and loses the link. Commit again. Before the first commit, check the review's first line is an H1 starting `# Na. `; if Codex wrote none or left the number off, add it.
+5. Commit the review file alone: `docs: record codex <topic> review`. If a commit hook refuses it for a link, correct only the link's target; where the target carried a line number the text lacks, add it to the text, as in `[spec.md:35](../spec.md)`. A link to a file the project's docs exclude keeps its text and loses the link. Commit again. Before the first commit, check the review's first line is an H1 starting `# Na. `; if Codex wrote none or left the number off, add it.
 6. Completion: the review file exists, is committed, and has been read; report its finding count and severities in one line.
 
 ## discuss

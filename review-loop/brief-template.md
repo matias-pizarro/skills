@@ -14,19 +14,19 @@ Review <what, in one sentence> as of commit <hash> (run: git show --stat <hash>)
 
 Read them against:
 - <path or glob, one per line>
-- the responses in `.scratch/<topic>/` (files ending in `-response.md`), the latest being for <prior hash>
+- the project's `AGENTS.md` and its recorded decisions, such as ADRs, where it has them
+- the responses in `.scratch/<topic>/reviews/` (files ending in `-response.md`), the latest being for <prior hash>
 
 ## Standing checks
 
 Check for:
 - whether each of the prior review's <n> findings is genuinely resolved, recorded as a deliberate choice, or only reworded;
 - <topic-specific check, one per line>
-- glossary drift;
-- anything that violates ADR-0008 beyond the recorded deliberate choices.
+- anything that contradicts `AGENTS.md` or a recorded decision beyond the recorded deliberate choices.
 
 ## Citations
 
-Cite every file as a markdown link relative to the review file, which sits in `.scratch/<topic>/reviews/`, with the line in the link text: `[spec.md:35](../spec.md)`, `[ADR-0008:7](../../../docs/adr/0008-prefer-the-simplest-mechanism-that-meets-the-threat-model.md)`. Never an absolute path, and no `:line` in the target; the docs build refuses both. Cite `docs-site/nav.md` as plain text, not a link: the site excludes it, since literate-nav reads its paths from the repo root and as a page they would resolve from `docs-site/`.
+Cite every file as a markdown link relative to the review file, which sits in `.scratch/<topic>/reviews/`, with the line in the link text: `[spec.md:35](../spec.md)`. Never an absolute path, and no `:line` in the target; rendered markdown resolves neither. <Any citation rule the project's `AGENTS.md` adds, such as files to cite as plain text.>
 
 ## Do not re-raise
 

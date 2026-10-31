@@ -8,14 +8,14 @@ disable-model-invocation: true
 
 A design loop: commit what is pending, ask Codex for a second-model review of one topic's artefacts, commit the review, walk the user through every finding with the grilling discipline, record what was decided beside the review, commit that, and go again until a review comes back with no findings.
 
-A **turn** is one pass through the three phases, **submit**, **discuss** and **close**. Phases follow each other without pausing; the only waits are the per-finding questions in discuss.
+A **turn** is one pass through the three phases, **submit**, **discuss** and **close**. Phases follow each other without pausing; the only waits are the approval of a new topic brief in submit and the per-finding questions in discuss.
 
 ## Prerequisites
 
 - A git repo that keeps work under `.scratch/<topic>/`.
 - A reviewer: `codex`, logged in, or `pi` with `OPENAI_API_KEY` set. tmux is optional.
 - The `grilling` and `domain-modeling` skills, which discuss loads.
-- The project's `AGENTS.md` may add rules for review files, such as links its docs build refuses; they apply on top of this skill.
+- Commit subjects below are conventional commits; where the project's commit style differs, follow the project.
 
 ## Invocation
 
@@ -33,40 +33,41 @@ A turn whose review has any finding, low included, is followed by another turn; 
 - **Response file**: the review file's path with `-response` in place of `-findings`, written in discuss. The prior response is the newest `*-response.md` in the topic's `reviews/`. Review and response files live in `reviews/`; the topic brief stays at the topic's top level. The two words are chosen so the review sorts before its response by filename.
 - **Round number**: N, the topic's round count including this turn: one more than the highest number in the H1s under the topic's `reviews/`. The review's H1 starts `# Na. ` and the response's `# Nb. `, so a listing by title reads 1a, 1b, 2a and so on.
 - **Topic brief**: `.scratch/<topic>/review-brief.md`, the durable part of the review prompt. Created from [`brief-template.md`](brief-template.md) on a topic's first run.
-- **Finding**: one numbered item in a review. **Deliberate choice**: a finding the user resolves by accepting the risk or cost; it is recorded in the ticket or ADR it concerns, not only in the response.
+- **Finding**: one numbered item in a review.
+- **Deliberate choice**: a finding the user resolves by accepting the risk or cost.
 
 ## submit
 
-1. If the tree is dirty, commit it. Read the diff and write a one-line conventional subject with a short body; never commit a review or response file in this step.
-2. Identify the topic and suffix. If the topic brief is missing, create it from the template, filling the scope, sources and checks from the artefacts you can see, and show it to the user before continuing.
+1. If the tree is dirty, commit it with a one-line subject and a short body; a review or response file waits for its own commit.
+2. Identify the topic and suffix. If the topic brief is missing, create it from the template, filling the scope, sources and checks from the artefacts you can see, and leaving out the lines about a prior review. Show it to the user and wait for their approval.
 3. Build the prompt from the brief, adapting it to this turn:
    - the commit hash and `git show --stat <hash>` line;
-   - the prior response file by path and its finding count, read from the file, with the disposition-table instruction naming that count; on a first run, omit the disposition table;
+   - the prior response file by path and its finding count, read from the file, with the disposition-table instruction naming that count; on a first run, omit both;
    - the brief's do-not-re-raise list plus any deliberate choice recorded in the prior response;
-   - a check for whatever this turn changed that the brief's standing checks do not name.
+   - a check for whatever this turn changed that the brief's standing checks do not name;
    - the round number, with the instruction to title the report `# Na. <title>`.
-   The prompt always ends with the three fixed sentences: say so plainly if nothing is above low severity; do not edit files; produce a markdown report ordered by severity, citing file and line as a markdown link relative to the review file, which sits in `.scratch/<topic>/reviews/`, with the line in the link text, as in `[spec.md:35](../spec.md)`, never as an absolute path or with `:line` in the target, since rendered markdown resolves neither.
+   The prompt always ends with three fixed sentences: say so plainly if nothing is above low severity; do not edit files; produce a markdown report ordered by severity, citing every file as the brief's Citations section says.
 4. Write the prompt to a temporary file and run the review as a subagent with [`run-review`](run-review), which sits beside this file, from the repo root:
    ```
    <this skill's directory>/run-review <review file> <prompt file>
    ```
-   With `OPENAI_API_KEY` set the reviewer is a Pi subagent on an OpenAI model (`REVIEW_MODEL`, default `openai/gpt-5.3-codex`); without it, `codex exec --sandbox read-only`. Inside tmux it runs in its own pane, where its output streams, and the script waits for it; outside tmux it streams in place. Run it with a tool timeout of at least thirty-two minutes, since the script enforces thirty itself. A non-zero exit (124 for the time limit) means no review: report the exit status and stop the turn.
-5. Commit the review file alone: `docs: record codex <topic> review`. If a commit hook refuses it for a link, correct only the link's target; where the target carried a line number the text lacks, add it to the text, as in `[spec.md:35](../spec.md)`. A link to a file the project's docs exclude keeps its text and loses the link. Commit again. Before the first commit, check the review's first line is an H1 starting `# Na. `; if Codex wrote none or left the number off, add it.
+   Run it with a tool timeout of at least thirty-two minutes, since the script enforces thirty itself. A non-zero exit (124 for the time limit) means no review: report the exit status and stop the turn.
+5. Before the first commit, check the review's first line is an H1 starting `# Na. `; if Codex wrote none or left the number off, add it. Commit the review file alone: `docs: record codex <topic> review`. If a commit hook refuses it for a link, bring the link to the brief's citation format and the citation rules in the project's `AGENTS.md`, changing only its target, plus the line number in its text when the target carried one the text lacks. Commit again.
 6. Completion: the review file exists, is committed, and has been read; report its finding count and severities in one line.
 
 ## discuss
 
 Load the `grilling` and `domain-modeling` skills. Then, for each finding in severity order:
 
-1. State in one or two sentences whether the finding is right, and the fact that settles it, looking things up rather than asking.
+1. State in one or two sentences whether the finding is right, and the fact that settles it.
 2. Put exactly one question in the grilling format, with a recommended answer the user can accept with "yes". When two findings share one root cause, one question may cover both and must say so.
 3. Wait. Edit nothing before the answer. In `auto` mode, do not wait: take the recommended answer as the answer and say so in the response entry. The one exception is a recommended answer that is a deliberate choice; auto mode stops at that finding and waits, because a recorded acceptance of a risk or cost carries the user's name and an edit does not.
-4. Apply the answer to every file it touches, then append the finding's entry to the response file, created with an H1 starting `# Nb. `: its number and title, what was decided, and where it landed. A deliberate choice is also written into the ticket or ADR it concerns, marked as such.
+4. Apply the answer to every file it touches, then append the finding's entry to the response file, created with an H1 starting `# Nb. `: its number and title, what was decided, and where it landed.
 5. A finding that is a transcription error against a decision already made is applied without a question and reported as such.
 
 After the last finding: run a grep for wording the round made stale, fix what it finds, end the response file with a one-line agreement or disagreement with the review's disposition table, and summarise in the form the user has seen all session: one bullet per finding, nothing committed, the next phase named. Print it and continue into close without waiting.
 
-Completion: every finding has a response entry, every edit the entries name exists in the tree, and the stale-wording grep is clean.
+Completion: every finding has a response entry, every edit the entries name exists in the tree, the stale-wording grep is clean, the response file ends with its disposition line, and the summary is printed.
 
 ## close
 
@@ -77,4 +78,4 @@ Completion: every finding has a response entry, every edit the entries name exis
 
 - Review and response files are committed in separate commits, never together with design edits, so `git log` shows what Codex said and what was decided as two events.
 - The prompt names files, never pastes them; Codex reads the tree.
-- A finding is never resolved by rewording alone; if the honest resolution is to accept the risk, it is written as a deliberate choice where the next reader will look.
+- A finding is resolved by a change, or by a deliberate choice written, marked as such, where the project records decisions (the ticket or ADR it concerns), as well as in the response. Rewording alone resolves nothing.

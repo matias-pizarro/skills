@@ -1,0 +1,5 @@
+interface:
+  display_name: "Review Loop"
+  short_description: "Commit, Codex review, grill through findings, record the response"
+policy:
+  allow_implicit_invocation: false
